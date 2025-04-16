@@ -3,6 +3,7 @@ using System.Drawing;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.DevTools.V133.Autofill;
+using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
 
 namespace selenium_test;
@@ -15,6 +16,7 @@ public abstract class SeleniumTests
 
     protected const string _UserLogin = "user1";
     protected const string _UserPassword = "Qq!2333098";
+    protected const string _UserName = "user1";
     protected const string _BaseUrl = "https://staff-testing.testkontur.ru/";
 
     [SetUp]
@@ -27,6 +29,19 @@ public abstract class SeleniumTests
     public void BaseTearDown()
     {
         _Driver!.Quit();
+    }
+
+    protected void ConfigureDriverParams(Size browserWindowSize, int secondsToImplicitWait = 5)
+    {
+        _BrowserWindowSize = browserWindowSize;
+        _BrowserImplicitWait = TimeSpan.FromSeconds(secondsToImplicitWait);
+    }
+
+    protected void SetUpDriver()
+    {
+        _Driver = new();
+        _Driver.Manage().Timeouts().ImplicitWait = _BrowserImplicitWait;
+        _Driver.Manage().Window.Size = _BrowserWindowSize;
     }
 
     protected void Authorize()
@@ -44,19 +59,6 @@ public abstract class SeleniumTests
         await(ExpectedConditions.TitleIs("Новости"));
     }
 
-    protected void ConfigureDriverParams(Size browserWindowSize, int secondsToImplicitWait = 5)
-    {
-        _BrowserWindowSize = browserWindowSize;
-        _BrowserImplicitWait = TimeSpan.FromSeconds(secondsToImplicitWait);
-    }
-
-    protected void SetUpDriver()
-    {
-        _Driver = new();
-        _Driver.Manage().Timeouts().ImplicitWait = _BrowserImplicitWait;
-        _Driver.Manage().Window.Size = _BrowserWindowSize;
-    }
-
     protected void HeadToCommunities()
     {
         _Driver.FindElement(By.CssSelector("[data-tid=\"SidebarMenuButton\"]")).Click();
@@ -69,28 +71,33 @@ public abstract class SeleniumTests
 
     protected int GetCommunitiesCount()
     {
-        var text = _Driver.FindElement(By.CssSelector("[data-tid=\"CommunitiesCounter\"] span")).Text;
+        var text = _Driver.FindElement(By.CssSelector(
+            "[data-tid=\"CommunitiesCounter\"] span")).Text;
         return Int32.Parse(text.Split(' ').First());
     }
 
     protected void OpenCommunityCreationModal()
     {
-        _Driver.FindElement(By.CssSelector("[data-tid=\"PageHeader\"] button[class=\"sc-juXuNZ sc-ecQkzk WTxfS vPeNx\"]")).Click();
+        _Driver.FindElement(By.CssSelector(
+            "[data-tid=\"PageHeader\"] button[class=\"sc-juXuNZ sc-ecQkzk WTxfS vPeNx\"]")).Click();
     }
 
     protected void SelectCommunityMessageField(out IWebElement field)
     {
-        field = _Driver.FindElement(By.CssSelector("label[data-tid=\"Message\"] textarea[placeholder=\"Описание сообщества\"]"));
+        field = _Driver.FindElement(By.CssSelector(
+            "label[data-tid=\"Message\"] textarea[placeholder=\"Описание сообщества\"]"));
     }
 
     protected void SelectCommunityNameField(out IWebElement field)
     {
-        field = _Driver.FindElement(By.CssSelector("label[data-tid=\"Name\"] textarea[placeholder=\"Название сообщества\"]"));
+        field = _Driver.FindElement(By.CssSelector(
+            "label[data-tid=\"Name\"] textarea[placeholder=\"Название сообщества\"]"));
     }
 
-    protected void await(Func<IWebDriver, bool> condition, int secondsToWait = 3)
+    protected void await(Func<IWebDriver, bool> condition, int secondsToWait = 10)
     {
         var wait = new WebDriverWait(_Driver, TimeSpan.FromSeconds(secondsToWait));
+        wait.IgnoreExceptionTypes(typeof(StaleElementReferenceException));
         wait.Until(condition);
     }
 }
@@ -109,7 +116,8 @@ public class SeleniumTestsPractice : SeleniumTests
     [Test]
     public void AuthorizationNavigationTest()
     {
-        Assert.That(_Driver.Title, Is.EqualTo("Новости"), message: "Навигация после авторизации не соответствует странице \"Новости\"");
+        Assert.That(_Driver.Title, Is.EqualTo("Новости"),
+            message: "Навигация после авторизации не соответствует странице \"Новости\"");
     }
 
     [Test]
@@ -117,12 +125,14 @@ public class SeleniumTestsPractice : SeleniumTests
     {
         HeadToCommunities();
 
-        Assert.That(_Driver.Title, Is.EqualTo("Сообщества"), message: "Навигация в раздел \"Сообщества\" из сайдбара некорректна");
+        Assert.That(_Driver.Title, Is.EqualTo("Сообщества"), 
+            message: "Навигация в раздел \"Сообщества\" из сайдбара некорректна");
     }
     
     [TestCase("")]
     [TestCase("Самый обычный текст для проверки")]
-    [TestCase("Это не совсем уж и огромный текст, но, на самом деле, его достаточно для проверки, ведь он чуть больше чем 100 символов!")]
+    [TestCase(@"Это не совсем уж и огромный текст, но, на самом деле,
+        его достаточно для проверки, ведь он чуть больше чем 100 символов!")]
     public void CommunityNameFieldInsertionTest(string name)
     {
         HeadToCommunities();
@@ -130,7 +140,8 @@ public class SeleniumTestsPractice : SeleniumTests
         SelectCommunityNameField(out var nameField);
         nameField.SendKeys(name);
 
-        Assert.That(nameField.Text.Count(), Is.Not.GreaterThan(100));
+        Assert.That(nameField.Text.Count(), Is.Not.GreaterThan(100),
+            message: "Неверная валидация поля. Количество введённых символов не может быть >100");
     }
 
     [TestCase("CreateCommunityTest", "CreateCommunityTest")]
@@ -151,6 +162,35 @@ public class SeleniumTestsPractice : SeleniumTests
         HeadToCommunities();
         var countAfter = GetCommunitiesCount();
 
-        Assert.That(countPre, Is.Not.EqualTo(countAfter), message: "Количество сообществ не изменилось. Новое сообщество не создано.");
+        Assert.That(countPre, Is.Not.EqualTo(countAfter),
+            message: "Количество сообществ не изменилось. Новое сообщество не создано.");
+    }
+
+    [Test]
+    public void CheckCommunityAttendeesTest()
+    {
+        HeadToCommunities();
+        
+        _Driver.FindElements(By.CssSelector("[data-tid=\"Item\"]"))
+                .Where(e => e.Text == "Я участник")
+                .First()
+                .Click();
+
+        await(ExpectedConditions.StalenessOf(_Driver.FindElement(By.CssSelector("[data-tid=\"Item\"]"))));
+
+        _Driver.FindElements(By.CssSelector("[data-tid=\"Link\"]"))
+            .First(e => e.Displayed)
+            .Click();
+        
+        await(_Driver => 
+            {
+                _Driver.FindElement(By.CssSelector("button[data-tid=\"Members\"]")).Click();
+                return true;
+            });
+
+        var names = _Driver.FindElements(By.CssSelector("[data-tid=\"Caption\"] div")).Select(e => e.Text);
+
+        Assert.That(names, Contains.Item(_UserName),
+            message: "Пользователь, состоящий в сообществе, не отображается в списке участников.");
     }
 }
