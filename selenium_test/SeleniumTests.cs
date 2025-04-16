@@ -73,17 +73,19 @@ public abstract class SeleniumTests
         return Int32.Parse(text.Split(' ').First());
     }
 
-    protected void CreateCommunity(string name, string message)
+    protected void OpenCommunityCreationModal()
     {
         _Driver.FindElement(By.CssSelector("[data-tid=\"PageHeader\"] button[class=\"sc-juXuNZ sc-ecQkzk WTxfS vPeNx\"]")).Click();
+    }
 
-        var nameField = _Driver.FindElement(By.CssSelector("label[data-tid=\"Name\"] textarea[placeholder=\"Название сообщества\"]"));
-        nameField.SendKeys(name);
+    protected void SelectCommunityMessageField(out IWebElement field)
+    {
+        field = _Driver.FindElement(By.CssSelector("label[data-tid=\"Message\"] textarea[placeholder=\"Описание сообщества\"]"));
+    }
 
-        var messageField = _Driver.FindElement(By.CssSelector("label[data-tid=\"Message\"] textarea[placeholder=\"Описание сообщества\"]"));
-        messageField.SendKeys(message);
-
-        _Driver.FindElement(By.CssSelector("[data-tid=\"CreateButton\"] button")).Click();
+    protected void SelectCommunityNameField(out IWebElement field)
+    {
+        field = _Driver.FindElement(By.CssSelector("label[data-tid=\"Name\"] textarea[placeholder=\"Название сообщества\"]"));
     }
 
     protected void await(Func<IWebDriver, bool> condition, int secondsToWait = 3)
@@ -117,15 +119,38 @@ public class SeleniumTestsPractice : SeleniumTests
 
         Assert.That(_Driver.Title, Is.EqualTo("Сообщества"), message: "Навигация в раздел \"Сообщества\" из сайдбара некорректна");
     }
+    
+    [TestCase("")]
+    [TestCase("Самый обычный текст для проверки")]
+    [TestCase("Это не совсем уж и огромный текст, но, на самом деле, его достаточно для проверки, ведь он чуть больше чем 100 символов!")]
+    public void CommunityNameFieldInsertionTest(string name)
+    {
+        HeadToCommunities();
+        OpenCommunityCreationModal();
+        SelectCommunityNameField(out var nameField);
+        nameField.SendKeys(name);
 
-    [Test]
-    public void CreateCommunityTest()
+        Assert.That(nameField.Text.Count(), Is.Not.GreaterThan(100));
+    }
+
+    [TestCase("CreateCommunityTest", "CreateCommunityTest")]
+    public void CreateCommunityTest(string name, string message)
     {
         HeadToCommunities();
         var countPre = GetCommunitiesCount();
-        CreateCommunity("CreateCommunityTest", "CreateCommunityTest");
+
+        OpenCommunityCreationModal();
+        SelectCommunityNameField(out var nameField);
+        nameField.SendKeys(name);
+
+        SelectCommunityMessageField(out var messageField);
+        messageField.SendKeys(message);
+
+        _Driver.FindElement(By.CssSelector("[data-tid=\"CreateButton\"] button")).Click();
+
         HeadToCommunities();
         var countAfter = GetCommunitiesCount();
+
         Assert.That(countPre, Is.Not.EqualTo(countAfter), message: "Количество сообществ не изменилось. Новое сообщество не создано.");
     }
 }
