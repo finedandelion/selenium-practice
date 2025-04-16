@@ -8,9 +8,9 @@ namespace selenium_test;
 public class Tests
 {
     private readonly static ChromeDriver _Driver = new();
-    private readonly static string _UserLogin = "user1";
-    private readonly static string _UserPassword = "user1";
-    private readonly static string _BaseUrl = "https://staff-testing.testkontur.ru/";
+    private const string _UserLogin = "user1";
+    private const string _UserPassword = "Qq!2333098";
+    private const string _BaseUrl = "https://staff-testing.testkontur.ru/";
 
     [SetUp]
     public void BaseSetup()
@@ -35,13 +35,18 @@ public class Tests
     public void CommunitiesNavigationTest()
     {
         HeadToCommunities(_Driver);
+
+        var title = _Driver.FindElement(By.CssSelector("[data-tid=\"Title\"]")).Text;
+        Assert.That(title, Is.EqualTo("Сообщества"), message: "Навигация в раздел \"Сообщества\" некорректна");
     }
 
     private void Authorize(IWebDriver driver)
     {
         driver.Navigate().GoToUrl(_BaseUrl);
+
         var loginField = driver.FindElement(By.Id("Username"));
         loginField.SendKeys(_UserLogin);
+
         var passwordField =  driver.FindElement(By.Id("Password"));
         passwordField.SendKeys(_UserPassword);
 
@@ -51,7 +56,7 @@ public class Tests
         wait.Until(ExpectedConditions.TitleIs("Новости"));
     }
 
-    private void ConfigureDriver(ChromeDriver driver)
+    private void ConfigureDriver(IWebDriver driver)
     {
         driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
     }
